@@ -61,16 +61,25 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
         $scope.currentPlaylist = {};
         $scope.ytSearchResult = [];
         $scope.playlists = [];
-        $scope.currentVideoTitle = 'No Playlist Selected';
+        $scope.globalPlaylists = [];
+        $scope.currentVideoTitle = 'No Video Selected';
         $scope.pageToken = '';
         $scope.lastSearch = '';
+        $scope.replay = 'all';
+        $scope.shuffleState = false;
+        $scope.shuffleList = [];
         QubeService.listAllPlaylist($scope);
+        QubeService.getGlobalPlaylist($scope);
         addInfiniteScroll();
     }
 
     function addInfiniteScroll(){
         $('.searchResultColumn').bind('scroll', function() {
             if($(this).scrollTop() + $(this).innerHeight() >= this.scrollHeight) {
+                if($scope.lastSearch === true){
+                    $scope.relatedSearch($scope.relateVideoId, $scope.pageToken);
+                    return;
+                }
                 $scope.searchYt($scope.lastSearch, $scope.pageToken);
             }
         });
@@ -78,7 +87,7 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
 
     function updateCurrentVideoTitle($scope, newTitle){
         $scope.currentVideoTitle = $scope.currentPlayingVideo.snippet.title;
-        document.title = 'Qube - ' + $scope.currentVideoTitle;
+        document.title = '♫ ' + $scope.currentVideoTitle;
     }
 
     $scope.onSearch = function(query, callback) {
@@ -93,26 +102,42 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
     }
 
     $scope.changePlaylist = function(playlist) {
-        if($scope.currentPlaylist.name !== playlist.name){
+        if($scope.currentPlaylist !== playlist){
             $scope.currentPlaylist = playlist;
-            $scope.listAllVideos(playlist.name);
+            $scope.shuffleList = [];
+            //$scope.listAllVideos(playlist.name);
+            $scope.currentPlaylistOption = playlist.name;
             $scope.togglePlayVideo('QubeChangePlaylist');
         }
     }
 
-    $scope.loadFirstPlaylist = function(playlist) {
-        if($scope.currentPlaylist.name !== playlist.name){
-            $scope.currentPlaylist = playlist;
-            $scope.listAllVideos(playlist.name);
+    $scope.loadFirstPlaylist = function() {
+        if($( "#QubePlaylist" ).hasClass( "global" )){
+            $scope.currentPlaylist = $scope.globalPlaylists[0];
+            $scope.currentPlaylistOption = $scope.globalPlaylists[0].name;
+        }
+        else{
+            $scope.currentPlaylist = $scope.playlists[0];
+            $scope.currentPlaylistOption = $scope.playlists[0].name;
         }
     }
 
     $scope.removePlaylist = function(playlist){
         //prevent outer div's event
+        $scope.preventOuterDivEvent();
+        QubeService.removePlaylist($scope, playlist.name);
+    }
+
+    $scope.togglePublicPlaylist = function(playlist){
+        //prevent outer div's event
+        $scope.preventOuterDivEvent();
+        QubeService.togglePublicPlaylist($scope, playlist.name);
+    }
+
+    $scope.preventOuterDivEvent = function (){
         var e = window.event;
         e.cancelBubble = true;
         if (e.stopPropagation) e.stopPropagation();
-        QubeService.removePlaylist($scope, playlist.name);
     }
 
     $scope.updatePlaylist = function(list) {
@@ -144,7 +169,7 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
     $scope.listAllVideos = function(pname) {
         for (var a = 0; a < $scope.playlists.length; a++) {
             if ($scope.playlists[a].name === pname) {
-                $scope.videos = $scope.playlists[a].data;
+                $scope.currentPlaylist.data = $scope.playlists[a].data;
             }
         }
         $scope.currentPlaylistOption = pname;
@@ -155,25 +180,35 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
     }
 
     $scope.removeVideo = function(videoId){
-        //prevent outer div's event
-        var e = window.event;
-        e.cancelBubble = true;
-        if (e.stopPropagation) e.stopPropagation();
+        $scope.preventOuterDivEvent();
+        if(videoId === $scope.currentPlayingVideo.id){
+            $scope.nextVideo();
+        }
+        $scope.shuffleList = [];
         QubeService.removeVideoFromPlaylist($scope, $scope.currentPlaylist.name, videoId);
     }
 
     $scope.updateVideoList = function(list) {
         var newlist=[];
         for(var i = 0; i < list.length; i++){
-            for(var j = 0; j < $scope.videos.length; j++){
-                if(list[i] === $scope.videos[j].id){
-                    newlist.push($scope.videos[j]);
+            for(var j = 0; j < $scope.currentPlaylist.data.length; j++){
+                if(list[i] === $scope.currentPlaylist.data[j].id){
+                    newlist.push($scope.currentPlaylist.data[j]);
                 }
             }
         }
-        if(JSON.stringify($scope.videos) !== JSON.stringify(newlist)){
-            $scope.videos = newlist;
-            QubeService.updateVideoList($scope, $scope.currentPlaylist.name, list);
+        if(JSON.stringify($scope.currentPlaylist.data) !== JSON.stringify(newlist)){
+            var flag = false;
+            for(var i = 0; i<$scope.playlists.length; i++){
+                if($scope.playlists[i] === $scope.currentPlaylist){
+                    $scope.playlists[i].data = newlist;
+                    $scope.currentPlaylist.data = $scope.playlists[i].data;
+                    flag = true;
+                }
+            }
+            if(flag){
+              QubeService.updateVideoList($scope, $scope.currentPlaylist.name, list);
+            }
         }
         return;
     }
@@ -191,18 +226,38 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
             $scope.searchYt($scope.addVideoInput);
         }
     }
-
-    $scope.searchYt = function(val, pageToken) {
+    $scope.relatedSearch = function(videoId, pageToken){
+        $scope.preventOuterDivEvent();
+        $scope.listDisplay = 'youtube';
+        var parameters = {
+            key: 'AIzaSyD62u1qRt4_QKzAKvn9frRCDRWsEN2_ul0',
+            type: 'video',
+            maxResults: '20',
+            relatedToVideoId: videoId,
+            part: 'id,snippet',
+            pageToken: pageToken,
+            fields: 'nextPageToken, items/id,items/snippet/title,items/snippet/description,items/snippet/publishedAt,items/snippet/thumbnails/medium,items/snippet/channelTitle'
+        };
+        $scope.lastSearch = true;
+        $scope.relateVideoId = videoId;
+        if(!pageToken)
+            $scope.ytSearchResult = [];
+        $scope.searchYt(null,null, parameters);
+    }
+    $scope.searchYt = function(val, pageToken, parameters) {
+        if(!parameters){
+            var parameters = {
+                key: 'AIzaSyD62u1qRt4_QKzAKvn9frRCDRWsEN2_ul0',
+                type: 'video',
+                maxResults: '20',
+                part: 'id,snippet',
+                pageToken: pageToken,
+                fields: 'nextPageToken, items/id,items/snippet/title,items/snippet/description,items/snippet/publishedAt,items/snippet/thumbnails/medium,items/snippet/channelTitle',
+                q: val
+            };
+        }
         $http.get('https://www.googleapis.com/youtube/v3/search', {
-                params: {
-                    key: 'AIzaSyD62u1qRt4_QKzAKvn9frRCDRWsEN2_ul0',
-                    type: 'video',
-                    maxResults: '20',
-                    part: 'id,snippet',
-                    pageToken: pageToken,
-                    fields: 'nextPageToken, items/id,items/snippet/title,items/snippet/description,items/snippet/publishedAt,items/snippet/thumbnails/medium,items/snippet/channelTitle',
-                    q: val
-                }
+                params: parameters
             })
             .success(function(data) {
                 videoIDlist = "";
@@ -262,7 +317,7 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
         // from $scope.changePlaylist
         if (video) {
             if(video === 'QubeChangePlaylist'){
-                video = $scope.videos[0];
+                video = $scope.currentPlaylist.data[0];
                 player.loadVideoById(video.id);
                 $scope.currentPlayingVideo = video;
             }
@@ -280,7 +335,7 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
             } else if (player.getPlayerState() === 2) {
                 player.playVideo();
             } else if (player.getPlayerState() === -1) {
-                video = $scope.videos[0];
+                video = $scope.currentPlaylist.data[0];
                 player.loadVideoById(video.id);
                 $scope.currentPlayingVideo = video;
                 $scope.currentPlayingVideoDuration = $scope.currentPlayingVideo.contentDetails.duration;
@@ -289,20 +344,52 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
 
         }
     }
+    $scope.shuffleToggle = function(){
+        $scope.shuffleState = !$scope.shuffleState;
+        if($scope.shuffleState){
+            for(var i=0; i< $scope.currentPlaylist.data.length; i++){
+                if($scope.currentPlayingVideo.id == $scope.currentPlaylist.data[i].id){
+                    $scope.shuffleList[i] = true;
+                    return;
+                }
+            }
+        }
+    }
+    $scope.playRandom = function(){
+        var randomIndex, i=0;
+        while($scope.shuffleList[i] && i < $scope.currentPlaylist.data.length){
+            i++;
+        }
+        if(i === $scope.currentPlaylist.data.length){
+            $scope.shuffleList = [];
+        }
+        do{
+            randomIndex = Math.floor(Math.random() * ($scope.currentPlaylist.data.length));
+        } while($scope.shuffleList[randomIndex]);
+        $scope.shuffleList[randomIndex] = true;
+        player.loadVideoById($scope.currentPlaylist.data[randomIndex].id);
+        $scope.currentPlayingVideo = $scope.currentPlaylist.data[randomIndex];
+        $scope.currentPlayingVideoDuration = $scope.currentPlayingVideo.contentDetails.duration;
+        updateCurrentVideoTitle($scope, $scope.currentPlayingVideo.snippet.title);
+    }
 
     $scope.prevVideo = function() {
+        if($scope.shuffleState === true){ // for playing random video
+            $scope.playRandom();
+            return;
+        }
         var index = 0;
-        for(var i = 0; i < $scope.videos.length; i++){
-            if($scope.currentPlayingVideo.id === $scope.videos[i].id){
+        for(var i = 0; i < $scope.currentPlaylist.data.length; i++){
+            if($scope.currentPlayingVideo.id === $scope.currentPlaylist.data[i].id){
                 if(i === 0){
-                    index=$scope.videos.length-1;
-                        player.loadVideoById($scope.videos[index].id);
+                    index=$scope.currentPlaylist.data.length-1;
+                    player.loadVideoById($scope.currentPlaylist.data[index].id);
                 }
                 else{
                     index=i-1;
-                    player.loadVideoById($scope.videos[index].id);
+                    player.loadVideoById($scope.currentPlaylist.data[index].id);
                 }
-                $scope.currentPlayingVideo = $scope.videos[index];
+                $scope.currentPlayingVideo = $scope.currentPlaylist.data[index];
                 $scope.currentPlayingVideoDuration = $scope.currentPlayingVideo.contentDetails.duration;
                 updateCurrentVideoTitle($scope, $scope.currentPlayingVideo.snippet.title);
                 return;
@@ -310,18 +397,26 @@ app.controller('QubeCont', function($scope, $http, QubeService) {
         }
     }
 
-    $scope.nextVideo = function() {
+    $scope.nextVideo = function(data) {
         var index = 0;
-        for(var i = 0; i < $scope.videos.length; i++){
-            if($scope.currentPlayingVideo.id === $scope.videos[i].id){
-                if(i === $scope.videos.length-1){
-                    player.loadVideoById($scope.videos[index].id);
+        if(data === 'ended' && $scope.replay === 'one'){
+            player.loadVideoById($scope.currentPlayingVideo.id);
+            return;
+        }
+        if($scope.shuffleState === true){ // for playing random video
+            $scope.playRandom();
+            return;
+        }
+        for(var i = 0; i < $scope.currentPlaylist.data.length; i++){
+            if($scope.currentPlayingVideo.id === $scope.currentPlaylist.data[i].id){
+                if(i === $scope.currentPlaylist.data.length-1){
+                    player.loadVideoById($scope.currentPlaylist.data[index].id);
                 }
                 else{
                     index = i+1;
-                    player.loadVideoById($scope.videos[index].id);
+                    player.loadVideoById($scope.currentPlaylist.data[index].id);
                 }
-                $scope.currentPlayingVideo = $scope.videos[index];
+                $scope.currentPlayingVideo = $scope.currentPlaylist.data[index];
                 $scope.currentPlayingVideoDuration = $scope.currentPlayingVideo.contentDetails.duration;
                 updateCurrentVideoTitle($scope, $scope.currentPlayingVideo.snippet.title);
                 return;
@@ -353,7 +448,7 @@ app.service("QubeService", function($http, $q) {
         var evt = data.shift();
         //puts the data contentDetails inside target
         if (!evt) {
-            scope.loadFirstPlaylist(target[0]);
+            scope.loadFirstPlaylist();
             return;
         }
         var videoIDlist = '';
@@ -368,7 +463,15 @@ app.service("QubeService", function($http, $q) {
                 }
             })
             .success(function(contentDetailsData) {
-                target.push({name : evt.name, data : contentDetailsData.items, duration : "00:00"});
+                target.push(
+                    {
+                        id: evt._id,
+                        name : evt.name,
+                        isPublic: evt.isPublic,
+                        count: evt.count,
+                        data : contentDetailsData.items,
+                        duration : "00:00"
+                    });
                 for(var i=0; i<target[target.length-1].data.length; i++){
                     target[target.length-1].data[i].contentDetails.duration = convertYoutubeDuration(target[target.length-1].data[i].contentDetails.duration);
                     target[target.length-1].duration = addDuration(target[target.length-1].duration, target[target.length-1].data[i].contentDetails.duration);
@@ -408,6 +511,21 @@ app.service("QubeService", function($http, $q) {
             });
     };
 
+    function getGlobalPlaylist(scope){
+        $http.get(hostURL + "/api/global")
+            .success(function(res) {
+              if (res.status.toLowerCase() === "fail") {
+                  console.log(res.msg);
+              } else {
+                  scope.globalPlaylists = [];
+                  getVideoDetails(scope.globalPlaylists, res.data, scope);
+              }
+            })
+            .error(function(err) {
+              alertify.error('Error: Cannot get global playlists.');
+            });
+    }
+
     function addPlaylist(scope, pname) {
         $http.post("/api/playlists/" + pname)
             .success(function(res) {
@@ -444,7 +562,7 @@ app.service("QubeService", function($http, $q) {
                         }
                     }
                     if (scope.currentPlaylist.name === pname){
-                        scope.videos = [];
+                        scope.currentPlaylist.data = [];
                         scope.currentPlaylist = {};
                     }
                     alertify.success('Success: removed a playlist.');
@@ -467,6 +585,27 @@ app.service("QubeService", function($http, $q) {
             })
             .error(function(err){
                 alertify.error('Error: Failed to update playlist.');
+            });
+    };
+
+    function togglePublicPlaylist(scope, pname){
+        $http.put("/api/global/toggle/"+pname)
+            .success(function(res){
+                if (res.status.toLowerCase() === "fail") {
+                    console.log(res.msg);
+                } else {
+                    var temp;
+                    for(var i = 0; i < scope.playlists.length; i++){
+                        if(scope.playlists[i].name === pname){
+                            scope.playlists[i].isPublic = !scope.playlists[i].isPublic;
+                            temp = scope.playlists[i].isPublic ? 'public.' : 'private.';
+                        }
+                    }
+                    alertify.success('Success: Updated playlist to be '+temp);
+                }
+            })
+            .error(function(err){
+                alertify.error('Error: Failed to toggle playlist to public/private.');
             });
     };
 
@@ -504,9 +643,9 @@ app.service("QubeService", function($http, $q) {
                 if (res.status.toLowerCase() === "fail") {
                     console.log(res.msg);
                 } else {
-                    for(var i = 0; i < scope.videos.length; i++){
-                        if(videoId === scope.videos[i].id){
-                            scope.videos.splice(i, 1);
+                    for(var i = 0; i < scope.currentPlaylist.data.length; i++){
+                        if(videoId === scope.currentPlaylist.data[i].id){
+                            scope.currentPlaylist.data.splice(i, 1);
                             break;
                         }
                     }
@@ -541,9 +680,11 @@ app.service("QubeService", function($http, $q) {
         removePlaylist: removePlaylist,
         updatePlaylist: updatePlaylist,
         addVideoToPlaylist: addVideoToPlaylist,
+        togglePublicPlaylist: togglePublicPlaylist,
         removeVideoFromPlaylist: removeVideoFromPlaylist,
         updateVideoList : updateVideoList,
         searchAutoComplete: searchAutoComplete,
+        getGlobalPlaylist: getGlobalPlaylist
 
     });
 });

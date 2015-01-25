@@ -1,7 +1,6 @@
 var passport = require('passport');
 var FacebookStrategy = require('passport-facebook').Strategy;
-var GithubStrategy = require('passport-github').Strategy;/*
-var TwitterStrategy = require('passport-twitter').Strategy;*/
+var GithubStrategy = require('passport-github').Strategy;
 var GoogleStrategy = require('passport-google').Strategy;
 var User = require('./user.js');
 var config = require('./oauth.js');
@@ -18,7 +17,9 @@ var defaultPlaylist = [
                                 "pB-5XG-DbAA",
                                 "nfWlot6h_JM",
                                 "qpgTC9MDx1o"
-                            ]
+                            ],
+                            isPublic : false,
+                            count : 0
                         },
                         {
                             "name" : "Pop",
@@ -31,7 +32,9 @@ var defaultPlaylist = [
                                 "pUjE9H8QlA4",
                                 "yw04QD1LaB0",
                                 "g5qU7p7yOY8"
-                            ]
+                            ],
+                            isPublic : false,
+                            count : 0
                         },
                         {
                             "name" : "Country",
@@ -43,22 +46,37 @@ var defaultPlaylist = [
                                 "BuMiMBjcvWU",
                                 "inAj-sbwP7I",
                                 "-NPqM3vPDg8"
-                            ]
+                            ],
+                            isPublic : false,
+                            count : 0
                         },
                         {
                             "name" : "Electronic",
                             "videos" : [
-                                "CW56soql2N0",
-                                "zzE2lv7cMXw",
-                                "Bd6gsxjksBg",
-                                "_P837-kqrqg",
-                                "yYrvJ0hYr8I",
-                                "rvZWsr4QCRc",
-                                "FMcCnUk6n0g",
-                                "5YZwBIxjGfI",
-                                "S8HE5zl5CHM",
-                                "z2mUyssHMu8"
-                            ]
+                                "K_yBUfMGvzc",
+                                "ZvdgyppHp3w",
+                                "AW7O0KFpVX4",
+                                "maeYZ-dE458",
+                                "QvFqyn4kWJk",
+                                "ovDcLHa2L1o",
+                                "XMJxSM_TBgo",
+                                "12W8DtQwWYA",
+                                "zq2I6oBeibg",
+                                "xWH6mVOZxK8",
+                                "auqFostuqUk",
+                                "_snOoa8fR4s",
+                                "y-75n7PgqxQ",
+                                "cXh9QkDigfA",
+                                "ZwOVOSi-5nc",
+                                "u-VKRbGvg2s",
+                                "SrWWl6KEdmo",
+                                "LzZdhWkq2HA",
+                                "ZaSh4XCyVqU",
+                                "IgGjUjQRAxw",
+                                "BQwiYUHEePA"
+                            ],
+                            isPublic : false,
+                            count : 0
                         },
                         {
                             "name" : "Classical",
@@ -70,7 +88,9 @@ var defaultPlaylist = [
                                 "qVn2YGvIv0w",
                                 "XRU1AJsXN1g",
                                 "9E6b3swbnWg"
-                            ]
+                            ],
+                            isPublic : false,
+                            count : 0
                         },
                         {
                             "name" : "R & B",
@@ -86,7 +106,9 @@ var defaultPlaylist = [
                                 "CEavc5AIRRg",
                                 "KrRpGSgkQHI",
                                 "m_8B9ZSGNZ0"
-                            ]
+                            ],
+                            isPublic : false,
+                            count : 0
                         }
                     ];
 
@@ -112,6 +134,8 @@ module.exports = passport.use(new FacebookStrategy({
                     facebookID: profile._json.id,
                     name: profile.displayName,
                     created: Date.now(),
+                    lastLogin: Date.now(),
+                    loginCount: 1,
                     playlist: defaultPlaylist
                 });
                 user.save(function(err) {
@@ -148,6 +172,8 @@ module.exports = passport.use(new GithubStrategy({
                     facebookID: profile._json.id,
                     name: profile.displayName,
                     created: Date.now(),
+                    lastLogin: Date.now(),
+                    loginCount: 1,
                     playlist: defaultPlaylist
                 });
                 user.save(function(err) {
@@ -162,70 +188,3 @@ module.exports = passport.use(new GithubStrategy({
         });
     }
 ));
-
-/*passport.use(new TwitterStrategy({
-        consumerKey: config.twitter.consumerKey,
-        consumerSecret: config.twitter.consumerSecret,
-        callbackURL: config.twitter.callbackURL
-    },
-    function(accessToken, refreshToken, profile, done) {
-        console.log(profile.displayName + " has logged in.");
-        User.findOne({
-            oauthID: profile.id
-        }, function(err, user) {
-            if (err) {
-                console.log(err);
-            }
-            if (!err && user != null) {
-                done(null, user);
-            } else {
-                var user = new User({
-                    oauthID: profile.id,
-                    name: profile.displayName,
-                    created: Date.now()
-                });
-                user.save(function(err) {
-                    if (err) {
-                        console.log(err);
-                    } else {
-                        console.log("saving user ...");
-                        done(null, user);
-                    };
-                });
-            };
-        });
-    }
-));*/
-/*
-passport.use(new GoogleStrategy({
-        returnURL: config.google.returnURL,
-        realm: config.google.realm
-    },
-    function(accessToken, refreshToken, profile, done) {
-        console.log(profile.displayName + " has logged in.");
-        User.findOne({
-            oauthID: profile.id
-        }, function(err, user) {
-            if (err) {
-                console.log(err);
-            }
-            if (!err && user != null) {
-                done(null, user);
-            } else {
-                var user = new User({
-                    oauthID: profile.id,
-                    name: profile.displayName,
-                    created: Date.now()
-                });
-                user.save(function(err) {
-                    if (err) {
-                        console.log(err);
-                    } else {
-                        console.log("saving user ...");
-                        done(null, user);
-                    };
-                });
-            };
-        });
-    }
-));*/

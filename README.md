@@ -3,11 +3,13 @@ Qube
 
 Youtube playlist application for managing youtube videos
 
-Status : under-construction
+Status : [ON](http://myroomserver.hanul.co:4455)
+
+![QubePicture](https://fbcdn-sphotos-f-a.akamaihd.net/hphotos-ak-xap1/t31.0-8/10688370_10153071896192697_8977457701225123291_o.jpg)
 
 ### Developers:
 
-Paul Kim : [bumjung94](https://github.com/bumjung94)
+Paul Kim : [bumjung](https://github.com/bumjung)
 
 Insoo Choo : [insoochoo](https://github.com/insoochoo)
 
@@ -34,21 +36,14 @@ Insoo Choo : [insoochoo](https://github.com/insoochoo)
    * Expand view (full screen view)
    * Preview videos
    * Add to specific playlist
-   * alerting status (adding/removing videos, playlists, and errors)
+   * Related video search
+   * Repeat play one/all videos
+   * Shuffle play videos
+   * Packaged app (Windows, Mac OSX)
+   * Alerting status (adding/removing videos, playlists, and errors)
 
 ### To do:
-
-#### Release 1.0
-   * logout
-   * related video search
-   * homepage
-   * Logo (png, icns, ico)
-   * packaging app (Windows, OSX)
-   * google analytics
-
-#### BACKLOG
-   * share playlist
-   * profiling
-   * Telegram API integration
+   * Share playlist
    * Renaming playlist
-   * Facebook Like Integration
+   * Profiling
+   * Global playlist (see each others)
